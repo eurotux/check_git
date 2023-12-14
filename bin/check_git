@@ -399,10 +399,13 @@ gpg_hash_in_gpg_hash_comma_sep_str() {
 
 # Run wrapper to make sure no aliases are used.
 #
-# @param  string  The command to execute
+# @param  string   The printf format of the command to execute
+# @param  string[] Arguments to be quoted
 # @return integer Unix exit code
 run() {
-	_cmd="${1}"
+	_fmt="${1}"
+        shift
+	_cmd="$(printf "$_fmt" "$@")"
 	sh -c "LANG=C LC_ALL=C ${_cmd}"
 }
 
@@ -423,7 +426,7 @@ is_git_dir() {
 		return 1
 	fi
 
-	if ! run "cd ${_path} && git rev-parse --is-inside-work-tree" > /dev/null 2>&1; then
+	if ! run "cd %q && git rev-parse --is-inside-work-tree > /dev/null 2>&1" "${_path}"  ; then
 		return 1
 	fi
 
@@ -438,7 +441,7 @@ has_remote() {
 	_path="${1}"
 	_remote="${2}"
 
-	if ! run "cd ${_path} && git ls-remote --quiet ${_remote} > /dev/null 2>&1"; then
+	if ! run "cd %q && git ls-remote --quiet %q > /dev/null 2>&1" "${_path}" "${_remote}"; then
 		return 1
 	else
 		return 0
@@ -456,7 +459,7 @@ has_remote() {
 has_submodule() {
 	_path="${1}"
 
-	_modules="$( run "cd ${_path} && git submodule | wc -l | sed 's/^[[:space:]]*//g' | sed 's/[[:space:]]*$//g'" )"
+	_modules="$( run "cd %q && git submodule | wc -l | sed 's/^[[:space:]]*//g' | sed 's/[[:space:]]*$//g'" "${_path}" )"
 
 	if [ "${_modules}" = "0" ]; then
 		echo "0"
@@ -477,7 +480,7 @@ has_submodule() {
 get_current_branch() {
 	_path="${1}"
 
-	_branch="$( run "cd ${_path} && git branch --no-color | grep '^*' | sed 's/^*[[:space:]]*//g' | sed 's/^(.*)$/(nobranch)/g'" )"
+	_branch="$( run "cd %q && git branch --no-color | grep '^*' | sed 's/^*[[:space:]]*//g' | sed 's/^(.*)$/(nobranch)/g'" "${_path}" )"
 	if [ "${_branch}" != "(nobranch)" ]; then
 		echo "${_branch}"
 		return 0
@@ -497,7 +500,7 @@ get_current_branch() {
 get_current_tag() {
 	_path="${1}"
 
-	_tag="$( run "cd ${_path} && git log --pretty=format:'%d' --abbrev-commit --date=short -1 | grep -Eo 'tag:.*?,' | sed 's/,.*$//g' | sed 's/tag:[[:space:]]*//g'" )"
+	_tag="$( run "cd %q && git log --pretty=format:'%d' --abbrev-commit --date=short -1 | grep -Eo 'tag:.*?,' | sed 's/,.*$//g' | sed 's/tag:[[:space:]]*//g'" "${_path}" )"
 	if [ "${_tag}" = "" ]; then
 		echo
 		return 1
@@ -518,7 +521,7 @@ get_current_commit() {
 	_path="${1}"
 
 	# In case it fails...
-	if ! _commit="$( run "cd ${_path} && git log --raw -1 " )"; then
+	if ! _commit="$( run "cd %q && git log --raw -1 " "${_path}" )"; then
 		echo
 		return 1
 	else
@@ -544,13 +547,13 @@ _gpg_get_HEAD_raw_gpg_info() {
 
 	# If currently on a tag, verify this tag
 	if get_current_tag "${_path}" >/dev/null 2>&1; then
-		_tag="$( run "cd ${_path} && git tag --contains" )"
-		_gpg="$( run "cd ${_path} && git verify-tag --raw ${_tag} 2>&1 || true" )"
+		_tag="$( run "cd %q && git tag --contains" "${_path}" )"
+		_gpg="$( run "cd %q && git verify-tag --raw %q 2>&1 || true" "${_path}" "${_tag}" )"
 
 	# If not on a tag, get current commit and verify it
 	else
-		_commit="$( run "cd ${_path} && git log -1 | head -1 | grep commit | sed 's/^commit[[:space:]]*//g'" )"
-		_gpg="$( run "cd ${_path} && git verify-commit --raw ${_commit} 2>&1 || true" )"
+		_commit="$( run "cd %q && git log -1 | head -1 | grep commit | sed 's/^commit[[:space:]]*//g'" "${_path}" )"
+		_gpg="$( run "cd %q && git verify-commit --raw %q 2>&1 || true" "${_path}" "${_commit}" )"
 	fi
 
 	# No output, no gpg info
@@ -684,7 +687,7 @@ git_status() {
 		_ign_sub=""
 	fi
 
-	_output="$( run "cd ${_path} && git status --porcelain ${_ign_sub}" )"
+	_output="$( run "cd %q && git status --porcelain %q" "${_path}" "${_ign_sub}" )"
 	if [ "${_output}" != "" ]; then
 		return 1
 	else
@@ -715,14 +718,14 @@ git_branch_is_in_sync_with_remote() {
 	fi
 
 	if _branch="$( get_current_branch "${_path}" )"; then
-		_branch="$( run "cd ${_path} && git branch --no-color | grep '^*' | sed 's/^*[[:space:]]*//g'" )"
+		_branch="$( run "cd %q && git branch --no-color | grep '^*' | sed 's/^*[[:space:]]*//g'" "${_path}" )"
 
 		# Try to fetch remote 15 times in case something goes wrong
 		_fetch_success=0
 		for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
 			# Break on early success
 			set +e
-			if run "cd ${_path} && git fetch --no-recurse-submodules --no-tags --quiet ${_remote} > /dev/null 2>&1"; then
+			if run "cd %q && git fetch --no-recurse-submodules --no-tags --quiet %q > /dev/null 2>&1" "${_path}" "${_remote}"; then
 				set -e # Re-enable break on error
 				_fetch_success=1
 				break
@@ -735,7 +738,7 @@ git_branch_is_in_sync_with_remote() {
 		# Try to diff remote 9 times in case something goes wrong
 		for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
 			set +e
-			_diff="$( run "cd ${_path} && git diff ${_ign_sub} ${_remote}/${_branch} 2>/dev/null"; )"
+			_diff="$( run "cd %q && git diff %q %q/%q 2>/dev/null" "${_path}" "${_ign_sub}" "${_remote}" "${_branch}"; )"
 			_exit="$?"
 			if [ "${_exit}" = "0" ]; then
 				set -e # Re-enable break on error
