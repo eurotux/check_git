@@ -436,8 +436,9 @@ is_git_dir() {
 # @return integer Unix exit code
 has_remote() {
 	_path="${1}"
+	_remote="${2}"
 
-	if ! run "cd ${_path} && git ls-remote --quiet > /dev/null 2>&1"; then
+	if ! run "cd ${_path} && git ls-remote --quiet ${_remote} > /dev/null 2>&1"; then
 		return 1
 	else
 		return 0
@@ -717,14 +718,19 @@ git_branch_is_in_sync_with_remote() {
 		_branch="$( run "cd ${_path} && git branch --no-color | grep '^*' | sed 's/^*[[:space:]]*//g'" )"
 
 		# Try to fetch remote 15 times in case something goes wrong
+		_fetch_success=0
 		for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
 			# Break on early success
 			set +e
-			if run "cd ${_path} && git fetch --no-recurse-submodules --no-tags --quiet > /dev/null 2>&1"; then
+			if run "cd ${_path} && git fetch --no-recurse-submodules --no-tags --quiet ${_remote} > /dev/null 2>&1"; then
 				set -e # Re-enable break on error
+				_fetch_success=1
 				break
 			fi
 		done
+		if [ "${_fetch_success}" != "1" ];  then
+			return 1
+		fi
 
 		# Try to diff remote 9 times in case something goes wrong
 		for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
@@ -1065,7 +1071,7 @@ fi
 if [ "${CHECK_REMOTE_WITH_SUB}" = "1" ]; then
 
 	# 0.2.1 Check if there is a remote in the first place
-	if ! has_remote "${GIT_REPOSITORY_PATH}"; then
+	if ! has_remote "${GIT_REPOSITORY_PATH}" "${CHECK_REMOTE_NAME}"; then
 		log "crit" "Git remote: No remote available"
 	else
 		if git_branch_is_in_sync_with_remote "${GIT_REPOSITORY_PATH}" "${CHECK_REMOTE_NAME}" "1"; then # (without submodule)
@@ -1085,7 +1091,7 @@ if [ "${CHECK_REMOTE_WITH_SUB}" = "1" ]; then
 elif [ "${CHECK_REMOTE_WITHOUT_SUB}" = "1" ]; then
 
 	# 0.2.1 Check if there is a remote in the first place
-	if ! has_remote "${GIT_REPOSITORY_PATH}"; then
+	if ! has_remote "${GIT_REPOSITORY_PATH}" "${CHECK_REMOTE_NAME}"; then
 		log "crit" "Git remote: No remote available"
 	else
 		if git_branch_is_in_sync_with_remote "${GIT_REPOSITORY_PATH}" "${CHECK_REMOTE_NAME}" "1"; then # (without submodule)
