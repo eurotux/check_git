@@ -105,6 +105,8 @@ CHECK_REMOTE_WITH_SUB=0
 CHECK_REMOTE_WITHOUT_SUB=0
 # @var string Remote name
 CHECK_REMOTE_NAME=
+# @var boolean Attempt to push on remote divergence?
+PUSH_ON_DIFF=0
 
 # @var boolean Check if on a branch
 CHECK_BRANCH_ANY=0
@@ -142,8 +144,8 @@ CHECK_GPG_KEYS=
 
 print_usage() {
 
-	echo "Usage: check_git -d <git dir> [-s|-S] [-r|-R <remote>] [-b] [-B <branch>] [-t] [-T <tag>]] [-g] [-G <hash>[,<hash>]] [-v]"
-	echo "OR               -d <git dir> [-n <name>] [-l logfile] [-s|-S] [-r|-R <remote>] [-b] [-B <branch>] [-t] [-T <tag>]] [-g] [-G <hash>[,<hash>]] [-v]"
+	echo "Usage: check_git -d <git dir> [-s|-S] [-r|-R <remote> [-P]] [-b] [-B <branch>] [-t] [-T <tag>]] [-g] [-G <hash>[,<hash>]] [-v]"
+	echo "OR               -d <git dir> [-n <name>] [-l logfile] [-s|-S] [-r|-R <remote> [-P]] [-b] [-B <branch>] [-t] [-T <tag>]] [-g] [-G <hash>[,<hash>]] [-v]"
 	echo "OR               -h"
 	echo "OR               -V"
 
@@ -206,6 +208,12 @@ print_usage() {
 	echo "                      This ignores any submodules."
 	echo "                      To also check submodules use '-r'."
 	echo "                      '-r' and '-R' are mutually exclusive."
+	echo
+
+	echo "   -P                 Attempt to push to remote when not in sync with it."
+	echo "                      On successful push, the exit status will be converted to warning instead of critical."
+	echo "                      This option is only valid with '-r' or '-R'."
+	echo
 
 	echo "   -b                 Check if repository is checkout out on a branch."
 	echo "                      No detached HEAD or tag."
@@ -747,6 +755,15 @@ git_branch_is_in_sync_with_remote() {
 		done
 
 		if [ "${_diff}" != "" ];  then
+			# No errors, but divergence was found
+			if [ "${PUSH_ON_DIFF}" = "1" ]; then
+				if run "cd %q && git push %q &>/dev/null" "${_path}" "${_remote}"; then
+					log "warn" "Git remote: push performed after difference from '${CHECK_REMOTE_NAME}' found"
+					return 0
+				else
+					log "crit" "Git remote: failed to push after difference from '${CHECK_REMOTE_NAME}' found"
+				fi
+			fi
 			return 1
 		else
 			return 0
@@ -865,6 +882,9 @@ while test -n "${1:-}"; do
 			shift
 			CHECK_REMOTE_NAME="${1}"
 			;;
+		-P)
+			PUSH_ON_DIFF=1
+			;;
 
 		# ---- 5. Check branch
 		-b)
@@ -974,6 +994,11 @@ fi
 
 if ! is_git_dir "${GIT_REPOSITORY_PATH}"; then
 	echo "Error, Not a git directory: ${GIT_REPOSITORY_PATH}"
+	exit $EXIT_UNKN
+fi
+
+if [ "${PUSH_ON_DIFF}" = "1" -a "${CHECK_REMOTE_WITH_SUB}" = "0" -a "${CHECK_REMOTE_WITHOUT_SUB}" = "0" ]; then
+	echo "Error, Setting '-P' requires '-r' or '-R'!"
 	exit $EXIT_UNKN
 fi
 
