@@ -426,7 +426,7 @@ is_git_dir() {
 		return 1
 	fi
 
-	if ! run "cd %q && git rev-parse --is-inside-work-tree > /dev/null 2>&1" "${_path}"  ; then
+	if ! run "cd %q && git rev-parse --is-inside-work-tree &>/dev/null" "${_path}"  ; then
 		return 1
 	fi
 
@@ -441,7 +441,7 @@ has_remote() {
 	_path="${1}"
 	_remote="${2}"
 
-	if ! run "cd %q && git ls-remote --quiet %q > /dev/null 2>&1" "${_path}" "${_remote}"; then
+	if ! run "cd %q && git ls-remote --quiet %q &>/dev/null" "${_path}" "${_remote}"; then
 		return 1
 	else
 		return 0
@@ -546,7 +546,7 @@ _gpg_get_HEAD_raw_gpg_info() {
 	_path="${1}"
 
 	# If currently on a tag, verify this tag
-	if get_current_tag "${_path}" >/dev/null 2>&1; then
+	if get_current_tag "${_path}" &>/dev/null; then
 		_tag="$( run "cd %q && git tag --contains" "${_path}" )"
 		_gpg="$( run "cd %q && git verify-tag --raw %q 2>&1 || true" "${_path}" "${_tag}" )"
 
@@ -725,7 +725,7 @@ git_branch_is_in_sync_with_remote() {
 		for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
 			# Break on early success
 			set +e
-			if run "cd %q && git fetch --no-recurse-submodules --no-tags --quiet %q > /dev/null 2>&1" "${_path}" "${_remote}"; then
+			if run "cd %q && git fetch --no-recurse-submodules --no-tags --quiet %q &>/dev/null" "${_path}" "${_remote}"; then
 				set -e # Re-enable break on error
 				_fetch_success=1
 				break
