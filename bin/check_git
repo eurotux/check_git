@@ -980,7 +980,7 @@ fi
 # Logfile output requires nagios log format
 if [ "${OUTPUT_LOGFILE}" = "1" ]; then
 	if [ "${OUTPUT_NAGIOS}" != "1" ]; then
-		echo "Error, Setting '-l' quires '-n'!"
+		echo "Error, Setting '-l' requires '-n'!"
 		exit $EXIT_UNKN
 	fi
 fi
