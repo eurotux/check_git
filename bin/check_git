@@ -726,7 +726,6 @@ git_branch_is_in_sync_with_remote() {
 	fi
 
 	if _branch="$( get_current_branch "${_path}" )"; then
-		_branch="$( run "cd %q && git branch --no-color | grep '^*' | sed 's/^*[[:space:]]*//g'" "${_path}" )"
 
 		# Try to fetch remote 15 times in case something goes wrong
 		_fetch_success=0
