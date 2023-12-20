@@ -745,7 +745,7 @@ git_branch_is_in_sync_with_remote() {
 		# Try to diff remote 9 times in case something goes wrong
 		for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
 			set +e
-			_diff="$( run "cd %q && git diff${_ign_sub} %q/%q 2>/dev/null" "${_path}" "${_remote}" "${_branch}"; )"
+			_diff="$( run "cd %q && git diff${_ign_sub} %q %q/%q 2>/dev/null" "${_path}" "${_branch}" "${_remote}" "${_branch}"; )"
 			_exit="$?"
 			if [ "${_exit}" = "0" ]; then
 				set -e # Re-enable break on error
