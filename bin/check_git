@@ -690,12 +690,12 @@ git_status() {
 	_ign_sub="${2}"
 
 	if [ "${_ign_sub}" = "1" ]; then
-		_ign_sub="--ignore-submodules"
+		_ign_sub=" --ignore-submodules"
 	else
 		_ign_sub=""
 	fi
 
-	_output="$( run "cd %q && git status --porcelain %q" "${_path}" "${_ign_sub}" )"
+	_output="$( run "cd %q && git status --porcelain${_ign_sub}" "${_path}" )"
 	if [ "${_output}" != "" ]; then
 		return 1
 	else
@@ -720,7 +720,7 @@ git_branch_is_in_sync_with_remote() {
 	_ign_sub="${3}"
 
 	if [ "${_ign_sub}" = "1" ]; then
-		_ign_sub="--ignore-submodules"
+		_ign_sub=" --ignore-submodules"
 	else
 		_ign_sub=""
 	fi
@@ -746,7 +746,7 @@ git_branch_is_in_sync_with_remote() {
 		# Try to diff remote 9 times in case something goes wrong
 		for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
 			set +e
-			_diff="$( run "cd %q && git diff %q %q/%q 2>/dev/null" "${_path}" "${_ign_sub}" "${_remote}" "${_branch}"; )"
+			_diff="$( run "cd %q && git diff${_ign_sub} %q/%q 2>/dev/null" "${_path}" "${_remote}" "${_branch}"; )"
 			_exit="$?"
 			if [ "${_exit}" = "0" ]; then
 				set -e # Re-enable break on error
